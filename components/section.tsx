@@ -36,7 +36,9 @@ export function SectionHeading({
   return (
     <div className={cn("mb-10 flex items-end justify-between gap-6 border-b border-line pb-4", className)}>
       <div className="flex items-baseline gap-4">
-        <span className="label text-line-hi">{index}</span>
+        {/* text-muted, not text-line-hi — the channel number is content, and
+            the hairline colour only manages 1.49:1 against the background. */}
+        <span className="label">{index}</span>
         <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">{title}</h2>
       </div>
       {aside ? <div className="shrink-0">{aside}</div> : null}

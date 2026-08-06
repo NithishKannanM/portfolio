@@ -30,9 +30,12 @@ export default function WorkPage() {
             carry h2 — unlike on the home page, where a section heading
             already occupies that level. */}
         <h2 className="sr-only">Featured projects</h2>
-        <RevealGroup className="grid gap-5 lg:grid-cols-2" gap={0.07}>
+        {/* priority: this grid is the first content on the page, so its cards
+            are LCP candidates and must not wait on hydration to become
+            visible. */}
+        <RevealGroup className="grid gap-5 lg:grid-cols-2" gap={0.07} priority>
           {featured.map((project) => (
-            <RevealItem key={project.slug} className="relative">
+            <RevealItem key={project.slug} className="relative" priority>
               <ProjectPanel project={project} headingLevel="h2" className="h-full" />
             </RevealItem>
           ))}

@@ -22,7 +22,8 @@ export default function AboutPage() {
       />
 
       <Section className="pt-12">
-        <Reveal className="max-w-2xl space-y-5 text-base leading-relaxed text-dim">
+        {/* priority: first content on the page, so an LCP candidate. */}
+        <Reveal priority className="max-w-2xl space-y-5 text-base leading-relaxed text-dim">
           <p>
             I&rsquo;m a computer science undergraduate at VIT Chennai. Most of what I
             build sits below the model rather than around it — retrieval, memory,

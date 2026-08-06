@@ -20,20 +20,17 @@ export type PostSummary = {
 
 type Tag = { tag: string; count: number };
 
-/**
- * All posts are present in the server-rendered HTML — filtering is a client
- * view concern, so crawlers and no-JS visitors still see every post.
- *
- * The active tag is mirrored into `?tag=` so a filtered view is shareable.
- * It's read from `location.search` on mount rather than via useSearchParams,
- * which would push the whole /blog route into dynamic rendering (or force a
- * Suspense boundary that emits the post list into the HTML twice).
- */
 const TAG_CHANGE = "blogtagchange";
 
-/** The URL is the external store. Server snapshot is null, so the prerendered
- *  HTML lists every post and React reconciles to the filtered view on
- *  hydration — no mismatch, and the back button works for free. */
+/**
+ * The URL is the external store for the active tag.
+ *
+ * Deliberately not `useSearchParams`, which would push the whole /blog route
+ * into dynamic rendering — or, behind a Suspense boundary, emit the post list
+ * into the HTML twice. The server snapshot is null, so the prerendered page
+ * lists every post and React reconciles to the filtered view on hydration:
+ * no mismatch, and the back button works for free.
+ */
 function subscribeToUrl(onChange: () => void) {
   window.addEventListener("popstate", onChange);
   window.addEventListener(TAG_CHANGE, onChange);
@@ -46,6 +43,10 @@ function subscribeToUrl(onChange: () => void) {
 const getTagFromUrl = () => new URLSearchParams(window.location.search).get("tag");
 const getServerTag = () => null;
 
+/**
+ * All posts are present in the server-rendered HTML — filtering is a client
+ * view concern, so crawlers and no-JS visitors still see every post.
+ */
 export function BlogIndex({ posts, tags }: { posts: PostSummary[]; tags: Tag[] }) {
   const reduce = useReducedMotion();
   const urlTag = useSyncExternalStore(subscribeToUrl, getTagFromUrl, getServerTag);
@@ -72,7 +73,7 @@ export function BlogIndex({ posts, tags }: { posts: PostSummary[]; tags: Tag[] }
       {tags.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2 border-b border-line pb-6">
           <FilterChip active={active === null} onClick={() => onSelect(null)}>
-            All <span className="text-line-hi">{posts.length}</span>
+            All <span className="opacity-60">{posts.length}</span>
           </FilterChip>
           {tags.map(({ tag, count }) => (
             <FilterChip
@@ -80,7 +81,7 @@ export function BlogIndex({ posts, tags }: { posts: PostSummary[]; tags: Tag[] }
               active={active === tag}
               onClick={() => onSelect(active === tag ? null : tag)}
             >
-              {tag} <span className="text-line-hi">{count}</span>
+              {tag} <span className="opacity-60">{count}</span>
             </FilterChip>
           ))}
         </div>

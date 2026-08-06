@@ -1,6 +1,6 @@
 "use client";
 
-import { createDrawable, createTimeline, stagger } from "animejs";
+import { createDrawable, createTimeline } from "animejs";
 import { useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
@@ -17,43 +17,31 @@ const TRACE =
   "L360,26 L400,60 L440,10 L480,48 L520,40 L560,55 L600,46 L640,51 " +
   "L680,49 L720,50 L760,50 L800,50";
 
+/**
+ * The text entrance is CSS (see [data-hero-rise] in globals.css) so it paints
+ * without waiting for this script — the thesis paragraph is the page's LCP
+ * element and gating it on hydration cost seconds.
+ *
+ * anime.js is left with the part that actually needs an imperative timeline:
+ * drawing the trace and settling the baseline underneath it.
+ */
 export function Hero() {
   const reduce = useReducedMotion();
-  const rootRef = useRef<HTMLElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
+    const svg = svgRef.current;
+    if (!svg) return;
 
-    const tl = createTimeline({ defaults: { ease: "outExpo" } });
-
-    tl.add(
-      root.querySelectorAll("[data-hero-rule]"),
-      { scaleX: [0, 1], duration: 700, delay: stagger(60) },
-      0,
-    )
+    const tl = createTimeline({ defaults: { ease: "outExpo" } })
       .add(
-        root.querySelectorAll("[data-hero-word]"),
-        { opacity: [0, 1], y: [14, 0], duration: 620, delay: stagger(45) },
-        120,
-      )
-      .add(
-        root.querySelectorAll("[data-hero-line]"),
-        { opacity: [0, 1], y: [8, 0], duration: 520, delay: stagger(70) },
-        320,
-      )
-      // The trace draws itself left to right, then the baseline fades up
-      // underneath it.
-      .add(
-        createDrawable(root.querySelectorAll("[data-hero-trace]")),
+        createDrawable(svg.querySelectorAll("[data-hero-trace]")),
         { draw: ["0 0", "0 1"], duration: 1400 },
-        420,
+        0,
       )
-      .add(root.querySelectorAll("[data-hero-baseline]"), { opacity: [0, 1], duration: 400 }, 900);
+      .add(svg.querySelectorAll("[data-hero-baseline]"), { opacity: [0, 1], duration: 400 }, 500);
 
-    if (reduce) {
-      tl.complete();
-    }
+    if (reduce) tl.complete();
 
     return () => void tl.revert();
   }, [reduce]);
@@ -62,7 +50,6 @@ export function Hero() {
 
   return (
     <section
-      ref={rootRef}
       className="relative overflow-hidden border-b border-line"
       aria-labelledby="hero-name"
     >
@@ -71,9 +58,8 @@ export function Hero() {
       <div className="relative mx-auto w-full max-w-6xl px-6 pt-20 pb-0 sm:pt-28">
         {/* Status line */}
         <div
-          data-hero-line
-          data-reveal
-          className="mb-10 flex flex-wrap items-center gap-x-6 gap-y-2 opacity-0"
+          data-hero-rise
+          className="mb-10 flex flex-wrap items-center gap-x-6 gap-y-2"
         >
           <span className="label flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-signal" aria-hidden />
@@ -82,7 +68,12 @@ export function Hero() {
           <span className="label">B.Tech CSE · VIT Chennai</span>
         </div>
 
-        <div data-hero-rule data-reveal className="mb-10 h-px origin-left bg-line" aria-hidden />
+        <div
+          data-hero-wipe
+          style={{ "--delay": "80ms" } as React.CSSProperties}
+          className="mb-10 h-px bg-line"
+          aria-hidden
+        />
 
         {/* Name */}
         <h1
@@ -91,20 +82,23 @@ export function Hero() {
         >
           {words.map((word, i) => (
             <span key={word} className="inline-block overflow-hidden align-bottom">
-              <span data-hero-word data-reveal className="inline-block opacity-0">
+              <span
+                data-hero-rise
+                style={{ "--delay": `${120 + i * 70}ms` } as React.CSSProperties}
+                className="inline-block"
+              >
                 {word}
-                {i < words.length - 1 ? " " : ""}
+                {i < words.length - 1 ? " " : ""}
               </span>
             </span>
           ))}
         </h1>
 
-        {/* Thesis */}
-        <p
-          data-hero-line
-          data-reveal
-          className="mt-8 max-w-xl text-lg leading-relaxed text-dim opacity-0 sm:text-xl"
-        >
+        {/* Thesis — deliberately not animated. This is the page's LCP element,
+            and any entrance animation on it (even a pure-CSS one) defers the
+            LCP paint by the animation delay plus, under CPU throttling, a good
+            deal more. It reads fine arriving with the page. */}
+        <p className="mt-8 max-w-xl text-lg leading-relaxed text-dim sm:text-xl">
           I build AI systems that <span className="text-fg">remember</span>,{" "}
           <span className="text-fg">retrieve</span>, and{" "}
           <span className="text-fg">know when to stop</span> — hybrid retrieval,
@@ -112,7 +106,11 @@ export function Hero() {
         </p>
 
         {/* Actions */}
-        <div data-hero-line data-reveal className="mt-10 flex flex-wrap items-center gap-3 opacity-0">
+        <div
+          data-hero-rise
+          style={{ "--delay": "340ms" } as React.CSSProperties}
+          className="mt-10 flex flex-wrap items-center gap-3"
+        >
           <Link
             href="/work"
             className="group inline-flex items-center gap-2 border border-line-hi bg-panel px-5 py-2.5 font-mono text-xs tracking-wider uppercase transition-colors hover:border-signal hover:text-signal"
@@ -142,6 +140,7 @@ export function Hero() {
         {/* Telemetry trace */}
         <div className="mt-16 -mx-6 sm:mt-20">
           <svg
+            ref={svgRef}
             viewBox="0 0 800 80"
             preserveAspectRatio="none"
             className="h-20 w-full sm:h-28"
@@ -150,6 +149,7 @@ export function Hero() {
           >
             <line
               data-hero-baseline
+              data-reveal
               x1="0"
               y1="50"
               x2="800"
@@ -158,8 +158,6 @@ export function Hero() {
               strokeWidth="1"
               strokeDasharray="3 5"
               vectorEffect="non-scaling-stroke"
-              data-reveal
-              className="opacity-0"
             />
             <path
               data-hero-trace

@@ -126,6 +126,50 @@ body {
   mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 20%, transparent 75%);
 }
 
+/* ------------------------------------------------------------------
+   HERO ENTRANCE — CSS, not JS.
+   The hero copy is the page's LCP element. Hiding it at opacity 0 and
+   revealing it from an anime.js timeline gated LCP on script download
+   plus hydration (measured: 4.3s on throttled mobile). As CSS keyframes
+   it animates from the first paint instead.
+
+   `backwards` fill supplies the from-state during the delay, and the
+   resting state is fully visible — so if animations never run, the text
+   is simply there. The reduced-motion block at the end of this file
+   collapses these to ~0ms.
+   ------------------------------------------------------------------ */
+
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes hero-wipe {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+[data-hero-rise] {
+  animation: hero-rise 620ms var(--ease-out-expo) backwards;
+  animation-delay: var(--delay, 0ms);
+}
+
+[data-hero-wipe] {
+  animation: hero-wipe 700ms var(--ease-out-expo) backwards;
+  animation-delay: var(--delay, 0ms);
+  transform-origin: left;
+}
+
 /* Corner crop-marks — the detail that makes a box read as an instrument
    rather than a card. Applied via <Panel corners>. */
 @utility corner-ticks {
