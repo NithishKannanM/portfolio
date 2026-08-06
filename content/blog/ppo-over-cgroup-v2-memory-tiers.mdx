@@ -1,0 +1,198 @@
+---
+title: "Reinforcement learning over cgroup v2: why PSI beats free bytes"
+description: >-
+  Building a predictive memory orchestrator meant choosing an observation space
+  for the policy. Free-memory counters looked obvious and were wrong. Here's
+  what PSI telemetry gives you instead.
+date: "2026-06-10"
+draft: true
+tags:
+  - Systems
+  - Reinforcement Learning
+  - Linux
+---
+
+[Ring Zero](/work/ring-zero) is a predictive memory orchestrator: it decides
+which applications stay resident in memory and which get demoted, under a fixed
+budget. We built it for the Samsung EnnovateX hackathon, and it beat Android's
+App Standby Buckets on both warm rate and latency at a 400MB ceiling.
+
+The interesting decision wasn't the model architecture. It was what the policy
+was allowed to *see*.
+
+## The problem is a control problem
+
+Keeping an app warm costs memory and saves latency. Evicting it does the
+reverse. Every mobile OS makes this call continuously, under a hard ceiling,
+without knowing what the user will open next.
+
+Android answers with **App Standby Buckets** — heuristic tiers based on recent
+usage. Heuristics are fast, predictable, and debuggable, which is why they ship.
+But they're fundamentally reactive: they sort apps by what already happened.
+
+That leaves an obvious opening. If you can predict what's about to be needed,
+you can pre-warm it instead of reacting after the launch.
+
+So Ring Zero splits into two halves:
+
+1. A **multi-modal next-context transformer** that forecasts what the user is
+   likely to need next.
+2. A **PPO-trained tier policy** that decides what to actually do about that
+   forecast, expressed against cgroup v2 memory tiers.
+
+This post is about the second half, and specifically about its observation
+space.
+
+## The obvious observation space is wrong
+
+The first instinct is to give the policy the numbers you'd check yourself:
+
+```python
+observation = {
+    "mem_free_bytes":      ...,
+    "mem_available_bytes": ...,
+    "swap_used_bytes":     ...,
+    "app_rss":             ...,
+}
+```
+
+This is intuitive and it fails, for a reason that took a while to see clearly.
+
+**Free memory is not a measure of suffering.** Linux deliberately uses nearly
+all physical memory — page cache, buffers, reclaimable slab. A system at 5%
+free may be perfectly healthy, with clean page cache it can drop instantly. A
+different system at 5% free may be thrashing, reclaiming and re-faulting the
+same pages continuously.
+
+Those two states look nearly identical in `mem_free_bytes` and feel completely
+different to the user. A policy trained on free bytes is being asked to learn a
+function that isn't determined by its inputs — the same observation maps to both
+"fine" and "on fire."
+
+<Note tone="warn" label="The failure mode">
+  Reward becomes uncorrelated with observation in exactly the region that
+  matters most: near the memory ceiling. The policy learns confident nonsense
+  right where you need it to be careful.
+</Note>
+
+## PSI measures the thing you actually care about
+
+Linux's **Pressure Stall Information** reports something different: how much
+time tasks spent *stalled* waiting on a resource.
+
+```bash title="cat /proc/pressure/memory"
+some avg10=0.42 avg60=0.31 avg300=0.18 total=8421337
+full avg10=0.00 avg60=0.02 avg300=0.01 total=1204551
+```
+
+Two lines, and the distinction between them is the useful part:
+
+- **`some`** — the share of time *at least one* task was stalled on memory.
+  This is the early-warning signal. It rises while the system still feels fine.
+- **`full`** — the share of time *every* runnable task was stalled. By the time
+  this moves, the user has noticed.
+
+The three windows (10s, 60s, 300s) give the policy a sense of trajectory for
+free. Rising `avg10` against flat `avg300` means pressure is building right
+now; the reverse means it's clearing.
+
+This is a fundamentally better observation because it's **already a measure of
+harm**. Free bytes are a proxy for harm that breaks under exactly the
+conditions you care about. PSI is the harm.
+
+And critically, cgroup v2 exposes PSI **per cgroup** — `memory.pressure` inside
+each control group — so the policy can see which tier is suffering, not just
+that the machine is.
+
+## Action space: cgroup v2 tiers
+
+cgroup v2's memory controller gives three knobs per group, and they aren't
+interchangeable:
+
+| Knob | Behaviour | Use |
+|---|---|---|
+| `memory.low` | Best-effort protection; reclaim avoids this group until others are exhausted | Protect warm apps |
+| `memory.high` | Throttles the group and pushes reclaim when exceeded | Soft demotion |
+| `memory.max` | Hard limit; OOM kill on breach | Last resort |
+
+The policy assigns applications to tiers, and each tier is a
+(`low`, `high`, `max`) triple. Making the action space *tier assignment* rather
+than *raw byte limits* matters a lot:
+
+- It's discrete and small, so PPO explores it in a feasible number of episodes.
+- It's inspectable — you can read what the policy decided and understand it.
+- It can't produce incoherent states like `low > high`, which a continuous
+  byte-valued action space happily will.
+
+`memory.high` is the important one. It throttles rather than kills, which means
+a wrong decision degrades performance instead of destroying process state. For a
+policy that is by definition going to be wrong sometimes, having the common
+failure be recoverable is worth a lot.
+
+## Reward shaping, and the tension in it
+
+The two objectives pull against each other under a fixed budget:
+
+$$
+r_t = w_{\text{warm}} \cdot \text{warm}_t - w_{\text{lat}} \cdot \frac{\text{latency}_t}{L_{\text{ref}}} - w_{\text{psi}} \cdot \text{PSI}^{\text{full}}_t
+$$
+
+The first two terms are the objectives. The third is what stops the policy
+gaming them.
+
+Without a pressure penalty, the reward-maximising strategy is trivial:
+keep everything warm. Warm rate goes to 1.0, latency goes to its floor, and the
+system sits permanently on the edge of the ceiling — where a single unexpected
+allocation causes a stall cascade. The policy learns to be spectacular right up
+until it isn't.
+
+Penalising `full` pressure prices in that fragility. It teaches the policy that
+headroom has value even when nothing has gone wrong yet, which is the actual
+job.
+
+<Todo>
+  Add the tuned weights, episode count, and the ablation showing what the PSI
+  penalty term is worth on its own.
+</Todo>
+
+## Why PPO
+
+The action space is discrete and the episodes are long, so the shortlist was
+DQN or a policy-gradient method. PPO won on one property: **the clipped
+objective bounds how far the policy can move in a single update.**
+
+That matters more here than in a simulator. Memory policy changes have delayed,
+correlated consequences — a bad eviction shows up as a cold start ten seconds
+later, tangled with every other decision made in between. A method that takes
+large confident steps on that kind of signal oscillates. PPO's clipping is a
+structural brake on exactly that.
+
+## Results
+
+Both systems were held to the same 400MB budget:
+
+| | Ring Zero | App Standby Buckets |
+|---|---|---|
+| Warm rate | **90%** | 86% |
+| Latency | **192ms** | 217ms |
+
+The part I'd point at isn't either number individually — it's that they moved
+together. Under a fixed budget these normally trade off, because the cheapest
+way to improve warm rate is to spend memory that latency needs. Improving both
+means the policy found genuinely better allocations rather than sliding along
+the existing trade-off curve.
+
+## What transfers
+
+If you're putting a learned policy on top of a resource controller:
+
+**Observe harm, not state.** Whatever your domain's equivalent of PSI is —
+queue wait time, stall time, retry rate — prefer it over the capacity counter
+that's easier to read.
+
+**Make the action space structurally valid.** Discrete tiers can't express an
+incoherent configuration. Continuous limits can, and your policy will find
+them.
+
+**Penalise fragility explicitly.** If nothing in the reward prices in headroom,
+the optimal policy is to have none.

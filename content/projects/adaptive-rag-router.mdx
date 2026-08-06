@@ -1,0 +1,56 @@
+---
+title: adaptive-rag-router
+subtitle: Embedding-similarity routing layer for RAG pipelines
+status: shipped
+featured: false
+order: 5
+stack:
+  - Python
+  - Embeddings
+  - OpenTelemetry
+  - PyPI
+summary: >-
+  A pip-installable routing layer that decides which RAG path a query should
+  take by embedding similarity — and, when confidence is too low, refuses
+  instead of guessing.
+metrics:
+  - label: Distribution
+    value: PyPI
+    note: pip-installable
+  - label: Tracing
+    value: OTel
+    note: OpenTelemetry instrumented
+links: {}
+---
+
+## The idea
+
+Most RAG pipelines answer every query the same way, and answer every query
+regardless of whether they should. Both are choices worth making explicitly.
+
+`adaptive-rag-router` sits in front of the pipeline and does two things:
+
+**Routes.** Queries are matched by embedding similarity to decide which path
+handles them, so a pipeline can have specialised routes instead of one
+general-purpose path that is mediocre at all of them.
+
+**Refuses.** When confidence is below threshold, the router declines rather
+than sending a weak retrieval downstream to be confidently summarised. A RAG
+system that never refuses is not more capable than one that does — it just
+fails less visibly.
+
+## Observability
+
+The router is instrumented with **OpenTelemetry**, so routing decisions and
+refusals are traceable in production. Routing bugs are otherwise close to
+invisible: the pipeline returns *an* answer, just from the wrong path, and
+nothing looks broken until someone reads the output closely.
+
+## Availability
+
+Published on PyPI as `adaptive-rag-router`.
+
+<Todo>
+  Add the PyPI and GitHub links to this project's frontmatter, plus a short
+  usage snippet.
+</Todo>

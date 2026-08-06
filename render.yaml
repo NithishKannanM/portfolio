@@ -1,0 +1,27 @@
+# Render fallback deploy.
+#
+# Deployed as a Node web service rather than a static site on purpose: a static
+# export would drop /api/og, which generates social preview images at request
+# time.
+#
+# Set the EmailJS variables in the Render dashboard (they're marked sync: false
+# so they aren't committed here).
+
+services:
+  - type: web
+    name: nithishkannanm-portfolio
+    runtime: node
+    plan: starter
+    region: singapore
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NEXT_PUBLIC_EMAILJS_SERVICE_ID
+        sync: false
+      - key: NEXT_PUBLIC_EMAILJS_TEMPLATE_ID
+        sync: false
+      - key: NEXT_PUBLIC_EMAILJS_PUBLIC_KEY
+        sync: false

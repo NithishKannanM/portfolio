@@ -1,0 +1,192 @@
+---
+title: "Your agent isn't repeating itself. It's just not learning anything."
+description: >-
+  Repetition detection is the standard guard against stuck agent loops, and it
+  fails in both directions. Building Plateau meant measuring stagnation in
+  embedding space instead — and calibrating the threshold per run.
+date: "2026-08-04"
+draft: true
+tags:
+  - Agents
+  - Embeddings
+  - Reliability
+---
+
+An autonomous agent that has stopped making progress rarely announces it. It
+keeps producing output that looks like work: rephrasing its last conclusion,
+trying a small variation on the tool call that already failed, restating the
+plan in fresh words. Tokens keep being spent. Information stops accumulating.
+
+[Plateau](/work/plateau) is a circuit breaker for that state. This is why the
+obvious implementation doesn't work.
+
+## Repetition detection fails in both directions
+
+The standard guard is to detect repetition in the agent's output — exact match,
+n-gram overlap, edit distance. It fails twice, in opposite ways, and both
+failures are common.
+
+<Compare>
+  <Side label="False negative">
+    The agent is stuck but paraphrasing.
+
+    "I should check the config file."
+    → "Let me look at the configuration."
+    → "The next step is examining config settings."
+
+    Three distinct strings. Zero new information. Nothing trips.
+  </Side>
+  <Side label="False positive">
+    The agent is progressing but the format is fixed.
+
+    Structured output, iterative refactors, and tabular results all produce
+    highly similar text across genuinely different steps.
+
+    The breaker trips on healthy work.
+  </Side>
+</Compare>
+
+The false negative is the one that costs money. The false positive is the one
+that makes people turn the breaker off — which then costs money later.
+
+Both come from the same mistake: measuring the *surface* when the question is
+about the *content*. What you want to know isn't "is it repeating words." It's
+"is it still learning anything."
+
+## Measure movement in embedding space
+
+Plateau embeds each step's output and compares successive steps in embedding
+space rather than as strings. Paraphrase collapses to near-identical vectors —
+which is precisely the false negative that string matching misses. Structurally
+similar text about genuinely different content stays far apart — which is the
+false positive.
+
+```python title="plateau/detector.py"
+import numpy as np
+
+def semantic_delta(prev: np.ndarray, curr: np.ndarray) -> float:
+    """How far the agent moved this step. 0 = identical position."""
+    prev_n = prev / np.linalg.norm(prev)
+    curr_n = curr / np.linalg.norm(curr)
+    return 1.0 - float(np.dot(prev_n, curr_n))
+```
+
+The naive version of this is to threshold that delta directly: if movement
+drops below some constant, trip. That constant is where the whole approach
+falls apart.
+
+## There is no universal threshold
+
+Step-to-step semantic movement varies enormously by task, model, and prompt.
+
+A code-refactoring agent working through a file produces small, tightly
+clustered steps — its normal movement is low, and it is progressing fine. A
+research agent jumping between sources produces large jumps — its normal
+movement is high, and a "low" reading for it would be catastrophic for the
+refactoring agent's standards.
+
+Pick one constant and you get a detector that's oversensitive on one workload
+and useless on the other. Every threshold I tried was clearly right on the task
+I tuned it on and clearly wrong on the next one.
+
+<Note tone="warn" label="The real problem">
+  The question was never "is this delta small." It's "is this delta small
+  <em>for this agent, on this task, right now</em>."
+</Note>
+
+## Self-calibrating baseline
+
+So the threshold isn't a constant. Plateau observes the agent's own early steps
+to establish what normal movement looks like for this run, and trips relative to
+that baseline.
+
+```python title="plateau/baseline.py"
+class SelfCalibratingBaseline:
+    """Learns this run's normal step-to-step movement, then flags departures."""
+
+    def __init__(self, warmup: int = 5, sensitivity: float = 2.0):
+        self.warmup = warmup
+        self.sensitivity = sensitivity
+        self.deltas: list[float] = []
+
+    def observe(self, delta: float) -> bool:
+        """Returns True when movement has stalled relative to this run."""
+        self.deltas.append(delta)
+        if len(self.deltas) < self.warmup:
+            return False  # still calibrating — never trip during warmup
+
+        window = np.array(self.deltas[: self.warmup])
+        floor = window.mean() - self.sensitivity * window.std()
+        return delta < max(floor, 0.0)
+```
+
+Two properties matter here.
+
+**It cannot trip during warmup.** A breaker that fires before it knows what
+normal looks like is worse than no breaker, because it destroys trust on the
+first false positive and gets disabled.
+
+**It's scale-free.** The refactoring agent and the research agent get different
+effective thresholds from the same code, because each is measured against
+itself.
+
+This was the part that took the most iteration, and it's the part I'd defend as
+the actual contribution. Everything else is bookkeeping around it.
+
+## Why the embeddings run offline
+
+Plateau uses local sentence embeddings, not an embedding API. This is a
+reliability argument, not a cost one.
+
+A circuit breaker sits in the hot path of every step of the loop it protects.
+Making it depend on a network round trip adds latency to every step and
+introduces a new failure mode into the exact machinery meant to contain
+failures. When the API is slow, the breaker is slow. When the API is down,
+either the breaker is down or the agent is.
+
+A safety mechanism that fails when the system is under stress isn't a safety
+mechanism. Local embeddings make the breaker's availability independent of
+anything else being healthy.
+
+## Testing a detector with no ground truth
+
+There is no labelled corpus of stuck agent loops. So validation had to be built
+rather than downloaded — **121 passing tests**, in three layers:
+
+**Synthetic trajectories.** Sequences constructed to be definitively stuck
+(paraphrase chains) or definitively progressing (monotonically new content),
+where the correct verdict is known by construction. These pin down the obvious
+cases and catch regressions.
+
+**Property tests.** Invariants that must hold regardless of input: the breaker
+never trips during warmup; identical inputs always produce identical verdicts;
+a strictly-progressing trajectory never trips at any sensitivity.
+
+**A live two-machine demo.** The real check. Running distributed rather than in
+a single process surfaces the things unit tests structurally cannot — timing,
+ordering, and state that behaves differently when the agent isn't in the same
+memory space as the detector.
+
+That last one found things the first two didn't, which is roughly always how it
+goes.
+
+<Todo>
+  Add measured precision/recall on the synthetic trajectory set, and the
+  sensitivity sweep showing how the trip point moves.
+</Todo>
+
+## What generalises
+
+Plateau ships as an installable package, but the reusable idea is smaller than
+the package:
+
+**Measure the property you care about, not its surface proxy.** Repetition is a
+proxy for stagnation. It is a bad one, and no amount of tuning fixes a proxy
+that is wrong in both directions.
+
+**Calibrate against the system's own behaviour.** Any threshold you hardcode is
+a claim that all workloads look alike. They don't.
+
+**Keep safety mechanisms independent.** If the breaker depends on the same
+infrastructure as the thing it protects, it will be unavailable exactly when
+it's needed.

@@ -1,0 +1,85 @@
+---
+title: Plateau
+subtitle: Semantic circuit breaker for AI agents
+period: Jul 2026
+org: VIT Chennai Frontier AI Hackathon
+status: shipped
+featured: true
+order: 4
+stack:
+  - Python
+  - Sentence embeddings
+  - pytest
+summary: >-
+  A detector that trips on semantic information stagnation rather than textual
+  repetition, so autonomous agent loops can be stopped when they stop making
+  progress — not merely when they start repeating themselves.
+metrics:
+  - label: Passing tests
+    value: 121
+    note: validation suite
+  - label: Live demo
+    value: "2"
+    unit: machines
+    note: distributed, at the hackathon
+  - label: Distribution
+    value: pip
+    note: installable package `plateau`
+links: {}
+---
+
+## The problem
+
+An autonomous agent that has stopped making progress will often keep producing
+output that *looks* like progress. It rephrases its last conclusion, tries a
+variation of the tool call that already failed, restates the plan in new words.
+Tokens keep being spent; information stops accumulating.
+
+The standard guard against this is repetition detection over the text. That
+guard fails in both directions:
+
+- An agent that paraphrases itself is stuck, but the strings differ, so nothing
+  trips.
+- An agent legitimately iterating on a structured format produces similar text
+  while genuinely progressing, so the breaker trips on healthy work.
+
+The signal people actually want is not "is it repeating words" but "is it still
+learning anything."
+
+## The approach
+
+Plateau measures **semantic** stagnation. Each step's output is embedded, and
+successive steps are compared in embedding space rather than as strings. When
+new steps stop moving the agent to a meaningfully different position, the
+breaker trips.
+
+Two design choices carry the work:
+
+### Offline embeddings
+
+Comparison runs on local sentence embeddings, not an API call. A circuit
+breaker that depends on a network round trip per step adds latency and a new
+failure mode to the exact loop it is supposed to protect.
+
+### A self-calibrating baseline
+
+There is no universal threshold for "too similar." What counts as normal
+step-to-step movement differs by task, by model, and by prompt. So the
+threshold is not a constant — Plateau calibrates against the agent's own
+observed baseline and trips relative to that.
+
+This is what makes it usable without per-task tuning, and it is the part that
+took the most iteration.
+
+## Validation
+
+Testing a detector whose ground truth is fuzzy is its own problem: there is no
+labelled corpus of "stuck agent loops." Validation is a **121-test** suite,
+plus a **live two-machine demo** run at the hackathon — a distributed setup
+rather than a single-process happy path.
+
+Shipped as the installable package `plateau`.
+
+## Status
+
+Built for the VIT Chennai Frontier AI Hackathon, July 2026. Shipped.

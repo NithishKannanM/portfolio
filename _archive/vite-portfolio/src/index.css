@@ -1,0 +1,42 @@
+/* Tailwind CSS imports */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles for dark theme */
+@layer base {
+  * {
+    @apply border-dark-border;
+  }
+  
+  body {
+    @apply bg-dark-bg text-dark-text-primary font-sans antialiased;
+  }
+  
+  html {
+    @apply scroll-smooth;
+  }
+}
+
+/* Custom utility classes */
+@layer utilities {
+  .section-container {
+    @apply max-w-6xl mx-auto px-6 py-20;
+  }
+  
+  .heading-xl {
+    @apply text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight;
+  }
+  
+  .heading-lg {
+    @apply text-4xl md:text-5xl font-bold tracking-tight;
+  }
+  
+  .heading-md {
+    @apply text-2xl md:text-3xl font-semibold tracking-tight;
+  }
+  
+  .heading-sm {
+    @apply text-xl md:text-2xl font-semibold;
+  }
+}

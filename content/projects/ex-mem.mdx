@@ -1,0 +1,86 @@
+---
+title: ex_mem
+subtitle: Contradiction-aware shared memory server (MCP)
+period: Jun — Jul 2026
+status: active
+featured: true
+order: 3
+stack:
+  - Python
+  - MCP
+  - SQLite FTS5
+  - sqlite-vec
+  - LLM-judge
+summary: >-
+  An MCP memory server that treats a changed fact as evolution with preserved
+  history rather than an overwrite — aimed at a benchmark gap where every
+  system evaluated scores in single digits.
+metrics:
+  - label: Best FactConsolidation score
+    value: "≤7"
+    unit: "%"
+    note: across all 22 systems evaluated
+  - label: Systems evaluated
+    value: 22
+    note: MemoryAgentBench
+  - label: Retrieval stack
+    value: "2"
+    note: SQLite FTS5 + sqlite-vec
+links: {}
+---
+
+## The problem
+
+Agent memory systems almost universally treat a fact update as an overwrite.
+The user's address changes, so the old address is replaced. This is the obvious
+implementation and it destroys information: the fact that something *changed*,
+when it changed, and what it was before are all gone.
+
+The cost shows up on **MemoryAgentBench's FactConsolidation** task, which tests
+exactly this. All **22 systems** evaluated on it score **≤7%**.
+
+A benchmark where the entire field scores in single digits is usually not a
+tuning problem. It is a sign that the dominant design is wrong for the task.
+
+## The approach
+
+ex_mem inverts the default: a changed fact is an *evolution* of the existing
+one, with history preserved, not a replacement for it. Reading the memory
+returns the current state; the lineage stays queryable underneath.
+
+That reframing turns the hard part into contradiction detection — deciding
+whether a new statement conflicts with what is already stored, and if so,
+whether it supersedes it or coexists with it.
+
+### Retrieval stack
+
+Contradiction detection is only as good as the candidates it sees, so retrieval
+is hybrid:
+
+- **SQLite FTS5** for lexical matching — catches the exact-entity case.
+- **sqlite-vec** for vector similarity — catches the paraphrase case.
+
+Both live in the same SQLite database, which keeps the server a single file
+with no external service to run. For a memory server that agents are expected
+to spin up locally, that operational simplicity is a feature, not a compromise.
+
+### Contradiction classification
+
+An **LLM-judge-based classifier** decides whether a retrieved candidate
+actually contradicts the incoming fact. This is the piece that has to be
+right — a false positive rewrites history that should have been left alone, and
+a false negative silently stores two facts that cannot both be true.
+
+## Protocol
+
+Built on the **Model Context Protocol**, so the memory is shared rather than
+per-agent — any MCP-speaking client can read and write against the same store.
+
+<Todo>
+  Add the measured FactConsolidation score once evaluation is complete, plus
+  contradiction-classifier precision/recall.
+</Todo>
+
+## Status
+
+In design and active development.

@@ -1,0 +1,94 @@
+---
+title: Ring Zero
+subtitle: Predictive memory orchestrator
+period: Apr — May 2026
+org: Samsung EnnovateX Hackathon
+role: Co-built
+status: shipped
+featured: true
+order: 2
+stack:
+  - Python
+  - PyTorch
+  - PPO
+  - cgroup v2
+  - PSI telemetry
+  - Transformers
+summary: >-
+  A predictive memory orchestrator pairing a multi-modal next-context
+  transformer with a PPO-trained cgroup v2 tier policy. Beat the Android App
+  Standby Buckets baseline on both warm rate and latency at a fixed 400MB
+  budget.
+metrics:
+  - label: Warm rate
+    value: 90
+    unit: "%"
+    baseline: 86
+    baselineLabel: App Standby Buckets
+    better: higher
+    fill: 0.9
+  - label: Latency
+    value: 192
+    unit: ms
+    baseline: 217
+    baselineLabel: App Standby Buckets
+    better: lower
+    fill: 0.88
+  - label: Memory budget
+    value: 400
+    unit: MB
+    note: fixed constraint for both systems
+links: {}
+---
+
+## The problem
+
+Keeping an app warm is cheap in latency and expensive in memory. Evicting it is
+the reverse. Every mobile OS has to make that call continuously, under a hard
+memory ceiling, without knowing what the user will open next.
+
+Android's App Standby Buckets answer this with heuristics over recent usage.
+Heuristics are predictable and fast, but they are reactive: they can only sort
+apps by what already happened, not by what is about to.
+
+## The approach
+
+Ring Zero treats the decision as a prediction problem followed by a control
+problem, and splits it in two.
+
+### Predicting the next context
+
+A multi-modal next-context transformer forecasts what the user is likely to
+need. "Multi-modal" here means the signals are heterogeneous — not just app
+launch history, but the surrounding device context that makes a launch more or
+less likely.
+
+### Acting on the prediction
+
+A tier policy trained with **PPO** decides what to actually do with that
+forecast, expressed against **cgroup v2** memory tiers. The policy observes
+live pressure through **PSI telemetry** — Linux's pressure-stall information,
+which reports how much time tasks spend stalled waiting on memory rather than
+just how many bytes are free.
+
+That distinction matters. Free-byte counts tell you the state of the system;
+PSI tells you whether the system is actually suffering. A policy that optimises
+against the second one degrades far more gracefully near the ceiling.
+
+## Results
+
+Both systems were held to the same 400MB memory budget.
+
+| | Ring Zero | App Standby Buckets |
+|---|---|---|
+| Warm rate | **90%** | 86% |
+| Latency | **192ms** | 217ms |
+
+The two moved in the right direction together, which is the part that matters:
+warm rate and latency usually trade against each other under a fixed budget,
+because the cheapest way to improve one is to spend memory the other needs.
+
+## Status
+
+Built for the Samsung EnnovateX hackathon, April–May 2026. Co-built with a
+teammate.

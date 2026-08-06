@@ -1,0 +1,201 @@
+---
+title: "Reciprocal Rank Fusion in practice: what k actually controls"
+description: >-
+  Why hybrid retrieval fuses ranks instead of scores, what the k constant in
+  RRF really does, and where the method quietly fails on legal and compliance
+  corpora.
+date: "2026-07-22"
+draft: true
+tags:
+  - Retrieval
+  - RAG
+  - Evaluation
+---
+
+Every hybrid retrieval tutorial arrives at the same two-line conclusion: run a
+dense retriever and a lexical retriever, then combine them with Reciprocal Rank
+Fusion. It works, so nobody interrogates it.
+
+Building [MMU](/work/modular-memory-unit) — a hybrid retrieval framework over
+legal and compliance documents — I had to interrogate it, because on this
+corpus the failure modes are expensive and the easy defaults are wrong often
+enough to matter.
+
+This is what I found out about the parts the tutorials skip.
+
+## Why one retriever isn't enough
+
+Legal text punishes both retrieval families in opposite, complementary ways.
+
+<Compare>
+  <Side label="Dense (BGE-M3)">
+    Good at paraphrase. A query about "termination for convenience" finds the
+    clause even when it never uses those words.
+
+    Bad at exact reference. §4(2)(b) is, to an embedding model, a short
+    low-information string that looks a lot like §4(2)(c).
+  </Side>
+  <Side label="Lexical (BM25)">
+    Good at exact reference. Finds §4(2)(b) every time, ranked first.
+
+    Bad at everything else. The paragraph three documents away that qualifies
+    that clause shares almost no vocabulary with the query, so it never
+    surfaces.
+  </Side>
+</Compare>
+
+Picking one means accepting a known, permanent failure mode. On a corpus where
+missing a qualifying clause changes the answer, that's not a trade worth making
+silently — which is the argument for fusing rather than choosing.
+
+## The thing people get wrong: fusing scores
+
+The intuitive move is to normalise both retrievers' scores and take a weighted
+sum:
+
+$$
+\text{score}(d) = \alpha \cdot \tilde{s}_{\text{dense}}(d) + (1 - \alpha) \cdot \tilde{s}_{\text{bm25}}(d)
+$$
+
+This is worse than it looks, for a reason that isn't obvious until you plot the
+distributions.
+
+Cosine similarities from a dense model cluster tightly — on my corpus, almost
+everything relevant lands in a narrow band, because modern embedding models are
+trained to make *everything* moderately similar to everything else. BM25 scores
+are unbounded and long-tailed; they depend on term rarity and document length,
+so their scale shifts with the query.
+
+Min-max normalising both to $[0, 1]$ doesn't fix this. It just stretches two
+differently-shaped distributions onto the same interval and pretends the result
+is comparable. The $\alpha$ you tune on one query set silently stops being
+right on another.
+
+<Note tone="warn" label="The actual problem">
+  Scores from different retrievers aren't calibrated against each other, and
+  normalisation doesn't calibrate them — it only rescales them. You end up
+  tuning a knob that means something different for every query.
+</Note>
+
+## What RRF does instead
+
+Reciprocal Rank Fusion throws the scores away and keeps only the ordering:
+
+$$
+\text{RRF}(d) = \sum_{r \in R} \frac{1}{k + \text{rank}_r(d)}
+$$
+
+where $R$ is the set of retrievers and $\text{rank}_r(d)$ is the 1-indexed
+position of document $d$ in retriever $r$'s list.
+
+Ranks are the one thing every retriever produces on a comparable scale. Rank 1
+means the same thing coming out of BM25 as it does coming out of FAISS — "this
+retriever's best guess" — in a way that 0.83 and 14.2 never will.
+
+```python title="rrf.py"
+from collections import defaultdict
+
+def reciprocal_rank_fusion(rankings: list[list[str]], k: int = 60):
+    """Fuse ranked document-id lists. `rankings` is one list per retriever,
+    each ordered best-first."""
+    scores: dict[str, float] = defaultdict(float)
+
+    for ranking in rankings:
+        for rank, doc_id in enumerate(ranking, start=1):
+            scores[doc_id] += 1.0 / (k + rank)
+
+    return sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
+```
+
+That's the whole algorithm. Its power is entirely in what it refuses to use.
+
+## What k actually controls
+
+Almost every implementation hardcodes `k = 60` and cites the original paper.
+Nobody explains what it does, so here it is.
+
+$k$ sets **how sharply rank position is discounted** — in effect, how much a
+single retriever is allowed to dominate on its own confidence.
+
+Look at the contribution of the top few ranks at two values of $k$:
+
+| Rank | $k=10$ | $k=60$ |
+|---|---|---|
+| 1 | 0.0909 | 0.0164 |
+| 2 | 0.0833 | 0.0161 |
+| 3 | 0.0769 | 0.0159 |
+| 10 | 0.0500 | 0.0143 |
+| Ratio, rank 1 : rank 10 | **1.82×** | **1.15×** |
+
+At $k=10$, a document ranked first is worth nearly twice one ranked tenth. One
+retriever putting something at the top can carry it through fusion alone.
+
+At $k=60$, ranks 1 through 10 are nearly indistinguishable — a 15% spread. What
+now wins is **agreement**: a document that both retrievers place somewhere in
+their top ten beats a document that one retriever loves and the other doesn't
+rank at all.
+
+<Note label="The mental model">
+  Small $k$ trusts individual retriever confidence. Large $k$ trusts consensus
+  between retrievers. `k = 60` is a strong prior toward consensus — which is
+  usually right, and is exactly wrong when one of your retrievers is
+  categorically better for a query type.
+</Note>
+
+That last part is the case worth watching on legal text. An exact statutory
+citation is a query where BM25 is not merely better, it is *correct* and the
+dense retriever is noise. Consensus-weighting actively dilutes a retriever that
+already had the right answer at rank 1.
+
+## Where RRF fails
+
+Three failure modes I hit, none of which get mentioned in the tutorials:
+
+**It discards margin.** If BM25 returns one overwhelming match and then junk,
+RRF sees "rank 1, rank 2, rank 3" and treats the junk as a respectable
+showing. The information that there was a cliff after the first result — which
+is real signal — is thrown away with the scores.
+
+**It rewards mediocre agreement.** A document both retrievers rank around 8th
+can outrank a document one retriever ranks 1st. Sometimes that's the point.
+Sometimes you've promoted a document neither retriever actually thought was the
+answer.
+
+**It's sensitive to list depth.** Documents outside a retriever's top-$n$
+contribute nothing, so cutting BM25 at 20 instead of 100 changes fused results
+in ways that look like a ranking bug rather than a truncation artefact. Fix the
+depth per retriever and treat it as a real hyperparameter, not a resource
+limit.
+
+## Evaluating it honestly
+
+The reason I care about all of this is that MMU is benchmarked across five
+custom metrics, and two of them are specifically designed to catch fusion going
+wrong:
+
+**Faithfulness** — whether the generated answer is actually supported by the
+retrieved context, not merely consistent with it. Fusion that promotes
+plausible-but-unsupporting context degrades this without touching a single
+top-1 accuracy number.
+
+**Cross-document reasoning** — whether the system combines evidence split
+across documents. This is where single-retriever setups quietly fail, and it's
+the metric that justifies the fusion machinery existing at all. If hybrid
+retrieval doesn't beat the best single retriever here, it isn't earning its
+complexity.
+
+<Todo>
+  Add the measured results: RRF vs dense-only vs BM25-only across all five
+  metrics, plus the sweep over k and the retrieval depth per retriever.
+</Todo>
+
+## What I'd tell someone starting
+
+Fuse ranks, not scores — the calibration problem is real and normalisation
+doesn't solve it. Then treat $k$ as a decision about how much you trust
+consensus over confidence, and actually sweep it rather than inheriting 60 from
+a paper written on a different corpus.
+
+And measure the thing fusion is supposed to buy you. Top-1 accuracy will not
+tell you whether hybrid retrieval is working, because that's not the case
+hybrid retrieval exists to fix.

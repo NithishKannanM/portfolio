@@ -1,0 +1,91 @@
+---
+title: Modular Memory Unit
+subtitle: Hybrid retrieval RAG framework
+period: Jan 2026 — Present
+status: active
+featured: true
+order: 1
+stack:
+  - Python
+  - FastAPI
+  - BGE-M3
+  - FAISS
+  - BM25
+  - LangChain (LCEL)
+  - SSE
+summary: >-
+  A retrieval framework that fuses dense and lexical signals with Reciprocal
+  Rank Fusion, benchmarked on legal and compliance documents across five custom
+  metrics including faithfulness and cross-document reasoning.
+metrics:
+  - label: Retrieval signals fused
+    value: 3
+    note: BGE-M3 · FAISS · BM25
+  - label: Custom eval metrics
+    value: 5
+    note: incl. faithfulness, cross-doc reasoning
+  - label: Target venue
+    value: EMNLP/ACL
+    note: Student Research Workshop
+links: {}
+---
+
+## The problem
+
+Retrieval-augmented generation over legal and compliance corpora punishes the
+usual shortcuts. Dense retrievers are good at paraphrase and bad at the exact
+statutory reference a clause hinges on. Lexical retrievers are the reverse:
+they will find §4(2)(b) every time and miss the paragraph three documents away
+that qualifies it.
+
+Picking one means accepting a known failure mode. On documents where being
+wrong has consequences, that is not a trade worth making silently.
+
+## The approach
+
+MMU runs dense and lexical retrieval side by side and fuses the ranked lists
+with Reciprocal Rank Fusion.
+
+- **BGE-M3** provides the dense embedding signal.
+- **FAISS** serves the dense index.
+- **BM25** provides the lexical signal.
+- **Reciprocal Rank Fusion** combines the ranked lists without needing the two
+  retrievers' scores to be on a comparable scale — which is the whole reason
+  RRF is the right tool rather than a weighted score blend.
+
+The framework is deliberately modular: the retrievers sit behind a common
+interface so a signal can be swapped or added without touching the fusion
+layer or the evaluation harness.
+
+## Evaluation
+
+Rather than reporting a single retrieval score, MMU is benchmarked across five
+custom metrics on legal and compliance documents. Two of them matter most for
+this domain:
+
+- **Faithfulness** — whether the generated answer is actually supported by the
+  retrieved context, rather than merely consistent with it.
+- **Cross-document reasoning** — whether the system can combine evidence that
+  is split across documents, which is where single-retriever setups tend to
+  quietly fail.
+
+<Todo>
+  Add the measured numbers per metric, and the comparison against
+  dense-only and BM25-only baselines, once the benchmark run is final.
+</Todo>
+
+## Serving
+
+The framework ships behind a FastAPI backend:
+
+- `HybridRetriever` as the entry point, so callers do not need to know how many
+  signals are being fused.
+- An async/sync thread-pool pattern, so the synchronous retrieval libraries do
+  not block the event loop.
+- SSE streaming, so answers surface token by token instead of after the full
+  generation completes.
+
+## Status
+
+Active. The work is being written up with the EMNLP/ACL Student Research
+Workshop as the target venue.
