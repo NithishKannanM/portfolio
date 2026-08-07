@@ -33,8 +33,25 @@ const WINDOW_MS = 60_000;
 const MAX_PER_WINDOW = 3;
 const hits = new Map<string, number[]>();
 
+/**
+ * Backstop across every caller, spoofed identity or not.
+ *
+ * The per-IP limit is only as trustworthy as the IP, and the IP arrives in a
+ * header. This one can't be bypassed by forging anything, which matters
+ * because the asset being protected is a hard 200-sends-a-month quota: a
+ * bypass doesn't just spam the inbox, it takes the form offline for the rest
+ * of the month.
+ */
+const GLOBAL_MAX_PER_WINDOW = 8;
+let globalHits: number[] = [];
+
 function rateLimited(ip: string): boolean {
   const now = Date.now();
+
+  globalHits = globalHits.filter((t) => now - t < WINDOW_MS);
+  globalHits.push(now);
+  if (globalHits.length > GLOBAL_MAX_PER_WINDOW) return true;
+
   const recent = (hits.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
   recent.push(now);
   hits.set(ip, recent);
@@ -43,13 +60,38 @@ function rateLimited(ip: string): boolean {
   return recent.length > MAX_PER_WINDOW;
 }
 
+/**
+ * `x-forwarded-for` is a client-supplied header. Reading its *first* entry —
+ * the obvious implementation — lets anyone rotate a fake value per request and
+ * walk straight through the per-IP limit; verified by doing exactly that.
+ *
+ * The last entry is the one appended by the nearest trusted proxy, so it is
+ * the first value the client could not have written. `x-vercel-forwarded-for`
+ * is better still: Vercel sets it and strips any inbound copy, so prefer it
+ * where it exists.
+ */
 function clientIp(request: NextRequest): string {
+  const vercel = request.headers.get("x-vercel-forwarded-for");
+  if (vercel) return vercel.split(",").pop()!.trim();
+
   const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
+  if (forwarded) {
+    const chain = forwarded.split(",").filter((p) => p.trim());
+    if (chain.length) return chain[chain.length - 1].trim();
+  }
+
   return request.headers.get("x-real-ip") ?? "unknown";
 }
 
 const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+/**
+ * `name` and `email` are interpolated into the template's Subject and Reply-To,
+ * which are mail *headers*. A newline in a header value is how header injection
+ * works, so strip every control character before they get near one. EmailJS
+ * very likely sanitises too; this costs nothing and doesn't depend on that.
+ */
+const stripControl = (value: string) => value.replace(/[\u0000-\u001F\u007F]/g, " ").trim();
 
 function fail(error: string, status: number) {
   return Response.json({ error }, { status });
@@ -74,8 +116,10 @@ export async function POST(request: NextRequest) {
     return fail("Malformed request.", 400);
   }
 
-  const name = String(payload.name ?? "").trim();
-  const email = String(payload.email ?? "").trim();
+  // name and email land in mail headers, so they lose control characters
+  // entirely. message is a body and keeps its newlines.
+  const name = stripControl(String(payload.name ?? ""));
+  const email = stripControl(String(payload.email ?? ""));
   const message = String(payload.message ?? "").trim();
   const company = String(payload.company ?? "");
   const elapsed = Number(payload.elapsed ?? 0);
