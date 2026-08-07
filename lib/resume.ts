@@ -25,7 +25,7 @@ export const experience = [
   {
     role: "Freelance Web/Infra Consultant",
     org: "Viha Online",
-    period: "Jun 2025 — Present",
+    period: "Jun 2026 — Present",
     points: [
       "Ran a technical audit of a Shopify store (Liquid theme, GraphQL Admin API, GSC data) that surfaced a 58% checkout abandonment rate and a desktop-vs-mobile organic search gap (position 31.5 vs. 10.8).",
       "Queried store analytics via ShopifyQL and a Supermetrics GSC connector to trace an AOV drop to a single underperforming SKU with a 7–8× landing-page traffic gap.",
