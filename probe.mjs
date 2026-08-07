@@ -14,9 +14,19 @@ import { chromium } from "playwright-core";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 
-/** Routes that must exist in every environment. Draft-only posts are excluded:
- *  they 404 in production, and a 404 has no reveals to check. */
-const ROUTES = ["/", "/about", "/work", "/blog", "/lab", "/contact", "/work/ring-zero", "/lab/rrf-k"];
+/** Routes that must exist in every environment. Keep drafts out of this list —
+ *  they 404 in production, and the status check below would fail the run. */
+const ROUTES = [
+  "/",
+  "/about",
+  "/work",
+  "/blog",
+  "/lab",
+  "/contact",
+  "/work/ring-zero",
+  "/lab/rrf-k",
+  "/blog/reciprocal-rank-fusion-in-practice",
+];
 
 /** Each mode leaves the page scrolled to the bottom, having passed every section. */
 const MODES = {
