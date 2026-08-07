@@ -5,7 +5,9 @@
 # time.
 #
 # Set the EmailJS variables in the Render dashboard (they're marked sync: false
-# so they aren't committed here).
+# so they aren't committed here). None carry the NEXT_PUBLIC_ prefix on
+# purpose — the contact route calls EmailJS server-side so the credentials
+# never reach the browser.
 
 services:
   - type: web
@@ -19,9 +21,11 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
-      - key: NEXT_PUBLIC_EMAILJS_SERVICE_ID
+      - key: EMAILJS_SERVICE_ID
         sync: false
-      - key: NEXT_PUBLIC_EMAILJS_TEMPLATE_ID
+      - key: EMAILJS_TEMPLATE_ID
         sync: false
-      - key: NEXT_PUBLIC_EMAILJS_PUBLIC_KEY
+      - key: EMAILJS_PUBLIC_KEY
+        sync: false
+      - key: EMAILJS_PRIVATE_KEY
         sync: false

@@ -23,12 +23,7 @@ export const site = {
 } as const;
 
 /**
- * EmailJS. The public key is designed to be public; service and template
- * ids move to env so they aren't hardcoded in source the way they were in
- * the previous site.
+ * EmailJS credentials deliberately do not live here. They are read from the
+ * environment inside app/api/contact/route.ts and never reach the client —
+ * see the note there for why.
  */
-export const emailjs = {
-  serviceId: process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID ?? "",
-  templateId: process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID ?? "",
-  publicKey: process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY ?? "",
-} as const;

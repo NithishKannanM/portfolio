@@ -1,9 +1,7 @@
 "use client";
 
-import emailjs from "@emailjs/browser";
 import { useEffect, useRef, useState } from "react";
 
-import { emailjs as config, site } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 type Status = "idle" | "sending" | "sent" | "error";
@@ -27,8 +25,6 @@ export function ContactForm() {
     openedAt.current = Date.now();
   }, []);
 
-  const configured = Boolean(config.serviceId && config.templateId && config.publicKey);
-
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -36,35 +32,44 @@ export function ContactForm() {
     if (honeypot.current?.value) return; // silently drop
     if (Date.now() - openedAt.current < 2000) return; // submitted too fast to be human
 
-    if (!configured) {
-      setStatus("error");
-      setError("The form isn't configured yet. Please email me directly.");
-      return;
-    }
-
     setStatus("sending");
     setError(null);
 
     const data = new FormData(form);
     try {
-      await emailjs.send(
-        config.serviceId,
-        config.templateId,
-        {
-          from_name: data.get("name"),
-          from_email: data.get("email"),
+      // Posts to our own route rather than EmailJS: the credentials live on
+      // the server, so nothing sensitive ships in this bundle. See
+      // app/api/contact/route.ts.
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: data.get("name"),
+          email: data.get("email"),
           message: data.get("message"),
-          to_name: site.name,
-        },
-        config.publicKey,
-      );
+          company: data.get("company"),
+          elapsed: Date.now() - openedAt.current,
+        }),
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error ?? "Request failed.");
+      }
+
       setStatus("sent");
       form.reset();
       openedAt.current = Date.now();
     } catch (cause) {
       console.error("Contact form failed:", cause);
       setStatus("error");
-      setError("Something went wrong sending that. Please email me directly.");
+      // The route's messages are visitor-safe by construction; anything else
+      // falls back to the generic line.
+      setError(
+        cause instanceof Error && cause.message !== "Request failed."
+          ? cause.message
+          : "Something went wrong sending that. Please email me directly.",
+      );
     }
   }
 
