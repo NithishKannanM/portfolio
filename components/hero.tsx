@@ -1,51 +1,19 @@
 "use client";
 
-import { createDrawable, createTimeline } from "animejs";
-import { useReducedMotion } from "motion/react";
 import Link from "next/link";
-import { useEffect, useRef } from "react";
 
+import { HeroTrace } from "@/components/hero-trace";
 import { site } from "@/lib/site";
-
-/**
- * A memory-pressure trace: noisy under load, converging once the
- * orchestrator settles. Deliberately not decorative noise — it's the shape
- * of the problem the work is about.
- */
-const TRACE =
-  "M0,62 L40,58 L80,64 L120,42 L160,57 L200,18 L240,54 L280,34 L320,66 " +
-  "L360,26 L400,60 L440,10 L480,48 L520,40 L560,55 L600,46 L640,51 " +
-  "L680,49 L720,50 L760,50 L800,50";
 
 /**
  * The text entrance is CSS (see [data-hero-rise] in globals.css) so it paints
  * without waiting for this script — the thesis paragraph is the page's LCP
  * element and gating it on hydration cost seconds.
  *
- * anime.js is left with the part that actually needs an imperative timeline:
- * drawing the trace and settling the baseline underneath it.
+ * The telemetry trace owns its own timeline and scroll loop; see
+ * components/hero-trace.tsx.
  */
 export function Hero() {
-  const reduce = useReducedMotion();
-  const svgRef = useRef<SVGSVGElement>(null);
-
-  useEffect(() => {
-    const svg = svgRef.current;
-    if (!svg) return;
-
-    const tl = createTimeline({ defaults: { ease: "outExpo" } })
-      .add(
-        createDrawable(svg.querySelectorAll("[data-hero-trace]")),
-        { draw: ["0 0", "0 1"], duration: 1400 },
-        0,
-      )
-      .add(svg.querySelectorAll("[data-hero-baseline]"), { opacity: [0, 1], duration: 400 }, 500);
-
-    if (reduce) tl.complete();
-
-    return () => void tl.revert();
-  }, [reduce]);
-
   const words = site.name.split(" ");
 
   return (
@@ -138,37 +106,7 @@ export function Hero() {
         </div>
 
         {/* Telemetry trace */}
-        <div className="mt-16 -mx-6 sm:mt-20">
-          <svg
-            ref={svgRef}
-            viewBox="0 0 800 80"
-            preserveAspectRatio="none"
-            className="h-20 w-full sm:h-28"
-            role="img"
-            aria-label="Decorative memory-pressure trace converging to a steady state"
-          >
-            <line
-              data-hero-baseline
-              data-reveal
-              x1="0"
-              y1="50"
-              x2="800"
-              y2="50"
-              stroke="var(--color-line-hi)"
-              strokeWidth="1"
-              strokeDasharray="3 5"
-              vectorEffect="non-scaling-stroke"
-            />
-            <path
-              data-hero-trace
-              d={TRACE}
-              fill="none"
-              stroke="var(--color-signal)"
-              strokeWidth="1.5"
-              vectorEffect="non-scaling-stroke"
-            />
-          </svg>
-        </div>
+        <HeroTrace />
       </div>
     </section>
   );

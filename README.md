@@ -111,9 +111,18 @@ numerals everywhere numeric; amber (`--color-signal`) used sparingly for live
 state and key figures.
 
 Motion is centralised in `lib/motion.ts` — nothing should hand-tune an easing.
-Motion (motion.dev) handles scroll reveals and the mobile nav; anime.js handles
-two imperative set-pieces where a shared timeline genuinely beats declarative
-variants: the metric readouts and the hero trace.
+Motion (motion.dev) handles the mobile nav; scroll reveals run through
+`lib/use-reveal.ts`; anime.js handles two imperative set-pieces where a shared
+timeline genuinely beats declarative variants: the metric readouts and the hero
+trace's entrance.
+
+The hero trace (`components/hero-trace.tsx`) is the one live element on the
+site. After its entrance draw it hands off to a scroll-driven loop: the
+visitor's scrolling is the load, excursions spike and scroll leftward, and when
+the input stops the trace decays onto the dashed baseline, dims to a resting
+opacity, and cancels its own rAF. It idles at zero cost and stays parked while
+off-screen. Under `prefers-reduced-motion` the loop never starts and the seeded
+silhouette stays put.
 
 Reduced motion is honoured at three levels: `useReducedMotion` gates every
 Motion animation, anime timelines call `.complete()` to land on their final
