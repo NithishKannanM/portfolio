@@ -1,14 +1,24 @@
 import type { MetadataRoute } from "next";
 
 import { getPosts, getProjects } from "@/lib/content";
+import { instruments } from "@/lib/lab";
 import { site } from "@/lib/site";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const staticRoutes = ["", "/work", "/blog", "/about", "/contact"].map((route) => ({
+  const staticRoutes = ["", "/work", "/blog", "/lab", "/about", "/contact"].map((route) => ({
     url: `${site.url}${route}`,
     lastModified: new Date(),
     changeFrequency: "monthly" as const,
     priority: route === "" ? 1 : 0.8,
+  }));
+
+  // Interactive explainers are the pages most likely to be linked from
+  // elsewhere, so they carry a higher priority than posts.
+  const lab = instruments.map((instrument) => ({
+    url: `${site.url}/lab/${instrument.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.7,
   }));
 
   const projects = getProjects().map((project) => ({
@@ -28,5 +38,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.6,
     }));
 
-  return [...staticRoutes, ...projects, ...posts];
+  return [...staticRoutes, ...lab, ...projects, ...posts];
 }

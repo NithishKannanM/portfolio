@@ -1,4 +1,5 @@
 import { getPosts, getProjects } from "@/lib/content";
+import { instruments } from "@/lib/lab";
 import { site } from "@/lib/site";
 
 /**
@@ -38,6 +39,14 @@ ${
         .join("\n")
     : "- No published posts yet."
 }
+
+## Lab — interactive explainers
+
+Free, no signup. Each one makes a single mechanism draggable.
+
+${instruments
+  .map((i) => `- [${i.title}](${site.url}/lab/${i.slug}): ${i.summary.replace(/\s+/g, " ").trim()}`)
+  .join("\n")}
 
 ## Contact
 

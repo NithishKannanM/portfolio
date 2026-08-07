@@ -2,6 +2,7 @@ import { MDXRemote } from "next-mdx-remote/rsc";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { RrfLab } from "@/components/lab/rrf-lab";
 import { mdxOptions } from "@/lib/mdx-options";
 import { cn } from "@/lib/utils";
 
@@ -87,7 +88,7 @@ function Anchor({ href = "", children, ...rest }: React.ComponentProps<"a">) {
   );
 }
 
-const components = { Note, Figure, Compare, Side, Todo, a: Anchor };
+const components = { Note, Figure, Compare, Side, Todo, RrfLab, a: Anchor };
 
 export function Mdx({ source }: { source: string }) {
   return (

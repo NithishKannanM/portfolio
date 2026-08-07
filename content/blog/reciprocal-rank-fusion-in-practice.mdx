@@ -142,6 +142,18 @@ rank at all.
   categorically better for a query type.
 </Note>
 
+Rather than ask you to take that on trust, here it is as something you can
+drag. Two ranked lists, one slider, and the fused ordering recomputed live —
+including the exact $k$ at which the top result changes hands.
+
+<RrfLab />
+
+The first scenario is the one worth sitting with. BM25 is certain and the dense
+retriever barely ranks that clause at all, so at low $k$ the confident answer
+wins. Push $k$ up and a duller document that *both* retrievers merely quite like
+overtakes it — at $k = 63$. The default everyone ships is three units away from
+returning a different document.
+
 That last part is the case worth watching on legal text. An exact statutory
 citation is a query where BM25 is not merely better, it is *correct* and the
 dense retriever is noise. Consensus-weighting actively dilutes a retriever that

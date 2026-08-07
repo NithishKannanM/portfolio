@@ -103,6 +103,24 @@ Available in MDX beyond standard markdown: `<Note>`, `<Figure>`, `<Compare>` /
 
 ---
 
+## Lab
+
+`/lab` holds interactive explainers — one mechanism each, free and ungated.
+They exist to be linked to: a good explainer for something people actually
+search ("what does `k` do in RRF?") earns traffic for years in a way another
+post does not.
+
+Adding one: build the component under `components/lab/`, register it in
+`components/mdx.tsx` so it can be embedded in the post it came from, add a page
+at `app/lab/<slug>/page.tsx`, and add an entry to `lib/lab.ts` — the index page,
+sitemap, and `llms.txt` all read from there.
+
+The scenarios in `rrf-lab.tsx` are constructed to isolate one behaviour each,
+and the crossover values are quoted in the prose alongside them. If the rank
+data changes, recompute the crossovers before trusting the copy.
+
+---
+
 ## Design system
 
 Tokens live in `app/globals.css` under `@theme`. The look is "instrument

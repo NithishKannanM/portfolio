@@ -14,15 +14,9 @@ import { chromium } from "playwright-core";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 
-const ROUTES = [
-  "/",
-  "/about",
-  "/work",
-  "/blog",
-  "/contact",
-  "/work/ring-zero",
-  "/blog/reciprocal-rank-fusion-in-practice",
-];
+/** Routes that must exist in every environment. Draft-only posts are excluded:
+ *  they 404 in production, and a 404 has no reveals to check. */
+const ROUTES = ["/", "/about", "/work", "/blog", "/lab", "/contact", "/work/ring-zero", "/lab/rrf-k"];
 
 /** Each mode leaves the page scrolled to the bottom, having passed every section. */
 const MODES = {
@@ -58,7 +52,17 @@ const failures = [];
 for (const route of ROUTES) {
   for (const [mode, scroll] of Object.entries(MODES)) {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-    await page.goto(BASE + route, { waitUntil: "networkidle" });
+    const response = await page.goto(BASE + route, { waitUntil: "networkidle" });
+
+    // Without this a 404 sails through: it has no reveals, so "none hidden"
+    // reads as a pass.
+    if (!response || response.status() !== 200) {
+      const status = response ? response.status() : "no response";
+      failures.push({ label: `${route} [${mode}]`, status });
+      console.log(`FAIL ${route} [${mode}] — HTTP ${status}`);
+      await page.close();
+      continue;
+    }
 
     await scroll(page);
     // Outlast the longest transition (dur.slow) plus the stagger tail.
