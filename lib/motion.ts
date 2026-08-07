@@ -45,8 +45,13 @@ export const panelReveal: Variants = {
   },
 };
 
-/** Shared viewport config so every section triggers at the same point. */
-export const viewport = { once: true, margin: "-12% 0px -12% 0px" } as const;
+/**
+ * How far above the viewport's bottom edge the reveal trigger line sits, in
+ * pixels. Shared so every section on the site triggers at the same point.
+ * Consumed by `useReveal` in lib/use-reveal.ts — see there for why this is a
+ * geometric threshold rather than an IntersectionObserver root margin.
+ */
+export const revealOffset = 80;
 
 /**
  * Reduced-motion variants. `useMotionVariants` in components/motion-provider

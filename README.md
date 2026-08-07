@@ -22,6 +22,19 @@ npm run typecheck  # tsc --noEmit
 npm run lint
 ```
 
+### Scroll-reveal probe
+
+`npm run probe` drives a real browser over every route and asserts that no
+`[data-reveal]` element is left at opacity 0 — under gradual scrolling, an
+instant jump to the bottom, and viewport-sized hops. It guards a specific
+regression; see the header of `lib/use-reveal.ts`. Needs a Chrome binary and a
+server already running:
+
+```bash
+CHROME=/usr/bin/google-chrome npm run probe                        # against :3000
+CHROME=/usr/bin/google-chrome npm run probe -- http://localhost:3100
+```
+
 ---
 
 ## How content works

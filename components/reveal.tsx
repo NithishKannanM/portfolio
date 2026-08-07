@@ -2,9 +2,10 @@
 
 import { m, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
-import { createElement } from "react";
+import { createElement, useRef } from "react";
 
-import { fadeUp, stagger, still, viewport } from "@/lib/motion";
+import { fadeUp, stagger, still } from "@/lib/motion";
+import { useReveal } from "@/lib/use-reveal";
 import { cn } from "@/lib/utils";
 
 /**
@@ -35,21 +36,26 @@ export function Reveal({
   priority?: boolean;
 }) {
   const reduce = useReducedMotion();
+  const ref = useRef<HTMLDivElement>(null);
+  const revealed = useReveal(ref);
 
   if (priority) {
     return createElement(as, { className }, children);
   }
 
-  const Component = m[as];
+  // `as` is a union, so `m[as]` is too, and TS wants a ref satisfying every
+  // member at once. These tags take the same props here; one concrete type
+  // stands in for the union.
+  const Component = m[as] as typeof m.div;
 
   return (
     <Component
+      ref={ref}
       data-reveal
       className={className}
       variants={reduce ? still : fadeUp}
       initial="hidden"
-      whileInView="show"
-      viewport={viewport}
+      animate={revealed ? "show" : "hidden"}
       transition={reduce ? { duration: 0 } : { delay }}
     >
       {children}
@@ -77,21 +83,24 @@ export function RevealGroup({
   priority?: boolean;
 }) {
   const reduce = useReducedMotion();
+  const ref = useRef<HTMLDivElement>(null);
+  const revealed = useReveal(ref);
 
   if (priority) {
     return createElement(as, { className: cn(className) }, children);
   }
 
-  const Component = m[as];
+  // See the note in Reveal — same union-of-tags narrowing.
+  const Component = m[as] as typeof m.div;
 
   return (
     <Component
+      ref={ref}
       data-reveal
       className={cn(className)}
       variants={reduce ? still : stagger(gap, delay)}
       initial="hidden"
-      whileInView="show"
-      viewport={viewport}
+      animate={revealed ? "show" : "hidden"}
     >
       {children}
     </Component>
