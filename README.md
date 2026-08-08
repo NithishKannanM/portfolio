@@ -174,7 +174,11 @@ its final state when JS is unavailable.
 1. Push to GitHub.
 2. Import the repo in Vercel — the framework is auto-detected, no build config
    needed.
-3. Add the three `NEXT_PUBLIC_EMAILJS_*` variables from `.env.example`.
+3. Add the four `EMAILJS_*` variables from `.env.example`, for Production,
+   Preview, and Development. **None of them take the `NEXT_PUBLIC_` prefix** —
+   that inlines a value into the client bundle, which is the leak the
+   server-side contact route exists to close. Don't override `NODE_ENV` either;
+   `lib/content.ts` reads it to keep drafts out of production.
 4. Add the domain `nithishkannanm.com` and set `www` to redirect to apex.
 
 ### Render (fallback)

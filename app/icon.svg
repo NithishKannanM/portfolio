@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!--
+    Tab mark. Amber signal on void, the two colours the site is built from.
+
+    Drawn as a filled outline rather than <text> or a stroked path. Not type,
+    because SVG favicons don't load webfonts and a letterform would fall back
+    to whatever the renderer has. Not a stroke, because the joins at an N's
+    corners are acute enough to mitre into spikes, which reads as the two
+    verticals being misaligned.
+
+    The diagonal's vertical offset is 7.22 rather than the bar width: at this
+    slope that is what makes its perpendicular thickness equal the 4.5 of the
+    uprights. Eyeballing it leaves the diagonal visibly lighter.
+
+    The tile is opaque on purpose — #e8a33d only clears contrast against
+    near-black, and a transparent icon sits on whatever colour the tab strip is.
+  -->
+  <rect width="32" height="32" fill="#08090a"/>
+  <path
+    d="M8 8 H12.5 L19.5 16.78 V8 H24 V24 H19.5 L12.5 15.22 V24 H8 Z"
+    fill="#e8a33d"
+  />
+</svg>
