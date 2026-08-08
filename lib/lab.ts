@@ -24,6 +24,14 @@ export const instruments: Instrument[] = [
     answers: "Answers: why k = 60, and when it is wrong for you",
     post: "reciprocal-rank-fusion-in-practice",
   },
+  {
+    slug: "psi-vs-free-bytes",
+    title: "Why free memory looks fine while the machine is thrashing",
+    summary:
+      "Almost every memory alert in production is a threshold on free bytes, and it keeps missing the outages. Drag the threshold across three workloads and find the value that handles all of them — there isn't one, and the reason is that free bytes measures the wrong kind of quantity.",
+    answers: "Answers: why your free-memory alert never fires in time",
+    post: "ppo-over-cgroup-v2-memory-tiers",
+  },
 ];
 
 export const getInstrument = (slug: string) => instruments.find((i) => i.slug === slug);

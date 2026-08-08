@@ -25,6 +25,7 @@ const ROUTES = [
   "/contact",
   "/work/ring-zero",
   "/lab/rrf-k",
+  "/lab/psi-vs-free-bytes",
   "/blog/reciprocal-rank-fusion-in-practice",
 ];
 

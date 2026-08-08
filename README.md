@@ -90,14 +90,25 @@ description: One or two sentences. Used for cards, meta description, and RSS.
 date: "2026-08-04"     # quote it — bare dates parse as numbers in YAML
 tags: [Retrieval, RAG]
 draft: true            # visible in dev, hidden in production
+evidence: reasoned     # measured | reasoned | superseded
+supersededBy: slug     # required when evidence: superseded
 ---
 ```
 
 **Drafts** appear in `npm run dev` and are excluded from production builds, the
 sitemap, and RSS. Flip `draft: false` to publish.
 
+**`evidence`** renders as a pill in the post header and on the blog index, and
+defaults to `reasoned` — the weaker claim, so a post has to opt in to saying it
+measured something. Use `measured` only when the post actually reproduces the
+figures. What the three current posts still owe, and what to run to close it,
+is in `BENCHMARKS.md`.
+
 Available in MDX beyond standard markdown: `<Note>`, `<Figure>`, `<Compare>` /
-`<Side>`, and `<Todo>`. Code fences support `title="file.py"`,
+`<Side>`, `<Results>`, and `<Todo>`. `<Results>` is the measured-results table;
+it requires a `source` naming the script and commit that produced the figures,
+and renders a visible error rather than a plausible-looking table if the rows
+and columns disagree. Code fences support `title="file.py"`,
 `showLineNumbers`, line ranges `{1,3-5}`, and `/word/` highlighting. Math uses
 `$inline$` and `$$block$$`.
 
@@ -112,8 +123,14 @@ post does not.
 
 Adding one: build the component under `components/lab/`, register it in
 `components/mdx.tsx` so it can be embedded in the post it came from, add a page
-at `app/lab/<slug>/page.tsx`, and add an entry to `lib/lab.ts` — the index page,
-sitemap, and `llms.txt` all read from there.
+at `app/lab/<slug>/page.tsx`, add an entry to `lib/lab.ts` — the index page,
+sitemap, and `llms.txt` all read from there — and add the route to `ROUTES` in
+`probe.mjs`, which is a hand-maintained list.
+
+An instrument that makes a claim should compute it rather than assert it.
+`rrf-lab.tsx` derives the crossover values it quotes; `psi-lab.tsx` sweeps every
+threshold at module load and the prose reports what the sweep found. That way
+editing the underlying data can't quietly turn the copy into a lie.
 
 The scenarios in `rrf-lab.tsx` are constructed to isolate one behaviour each,
 and the crossover values are quoted in the prose alongside them. If the rank

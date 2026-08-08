@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { EvidenceBadge } from "@/components/evidence";
 import { Mdx } from "@/components/mdx";
 import { Toc } from "@/components/toc";
 import { getAdjacentPosts, getHeadings, getPost, getPosts } from "@/lib/content";
@@ -73,6 +74,11 @@ export default async function PostPage({ params }: Params) {
                 Draft
               </span>
             ) : null}
+            <EvidenceBadge
+              evidence={post.evidence}
+              supersededBy={post.supersededBy}
+              detail
+            />
           </div>
 
           <h1 className="mt-5 max-w-3xl text-[clamp(1.875rem,4.5vw,3rem)] font-semibold leading-[1.08] tracking-[-0.03em]">

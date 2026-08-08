@@ -6,6 +6,7 @@ import { ProjectPanel, ProjectRow } from "@/components/project-card";
 import { Reveal, RevealGroup, RevealItem } from "@/components/reveal";
 import { Section, SectionHeading } from "@/components/section";
 import { getFeaturedProjects, getPosts, getProjects } from "@/lib/content";
+import { instruments } from "@/lib/lab";
 import { experience, thesis } from "@/lib/resume";
 import { site } from "@/lib/site";
 import { formatDate, isoDate } from "@/lib/utils";
@@ -81,9 +82,62 @@ export default function HomePage() {
         ) : null}
       </Section>
 
+      {/* ---------------------------------------------------------------
+          Lab sits above Experience deliberately: it is the only thing on this
+          page a stranger can use, and it was previously reachable from the nav
+          and nowhere else.
+          --------------------------------------------------------------- */}
+      {instruments.length > 0 ? (
+        <Section id="lab">
+          <SectionHeading
+            index="03"
+            title="Lab"
+            aside={
+              <Link
+                href="/lab"
+                className="font-mono text-xs tracking-wider uppercase text-muted transition-colors hover:text-signal"
+              >
+                All instruments →
+              </Link>
+            }
+          />
+          <Reveal>
+            <p className="mb-8 max-w-2xl text-sm leading-relaxed text-dim">
+              Mechanisms from the work above, rebuilt as things you can drag. Free, no
+              signup — if one of them saves you an afternoon, it did its job.
+            </p>
+          </Reveal>
+          <RevealGroup as="ul" className="border-t border-line" gap={0.05}>
+            {instruments.map((instrument) => (
+              <RevealItem as="li" key={instrument.slug} className="group border-b border-line">
+                <Link
+                  href={`/lab/${instrument.slug}`}
+                  className="grid gap-2 py-6 sm:grid-cols-[1fr_auto] sm:items-baseline sm:gap-8"
+                >
+                  <div className="min-w-0">
+                    <h3 className="text-base font-medium tracking-tight transition-colors group-hover:text-signal">
+                      {instrument.title}
+                    </h3>
+                    <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-dim">
+                      {instrument.answers}
+                    </p>
+                  </div>
+                  <span
+                    className="font-mono text-xs tracking-wider text-muted uppercase transition-colors group-hover:text-signal"
+                    aria-hidden
+                  >
+                    Open →
+                  </span>
+                </Link>
+              </RevealItem>
+            ))}
+          </RevealGroup>
+        </Section>
+      ) : null}
+
       {/* --------------------------------------------------------------- */}
       <Section id="experience">
-        <SectionHeading index="03" title="Experience" />
+        <SectionHeading index="04" title="Experience" />
         <RevealGroup as="ul" className="border-t border-line" gap={0.05}>
           {experience.map((job) => (
             <RevealItem
@@ -117,7 +171,7 @@ export default function HomePage() {
       {posts.length > 0 ? (
         <Section id="writing">
           <SectionHeading
-            index="04"
+            index="05"
             title="Writing"
             aside={
               <Link

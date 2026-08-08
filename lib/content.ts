@@ -51,14 +51,31 @@ const projectSchema = z.object({
   order: z.number().default(99),
 });
 
-const postSchema = z.object({
-  title: z.string(),
-  description: z.string(),
-  date: z.string(),
-  updated: z.string().optional(),
-  tags: z.array(z.string()).default([]),
-  draft: z.boolean().default(false),
-});
+const postSchema = z
+  .object({
+    title: z.string(),
+    description: z.string(),
+    date: z.string(),
+    updated: z.string().optional(),
+    tags: z.array(z.string()).default([]),
+    draft: z.boolean().default(false),
+    /**
+     * What backs the claims in the post.
+     *
+     * Defaults to `reasoned` deliberately: that is the weaker statement, so a
+     * post has to opt in to claiming it measured something, never the other
+     * way round. `reasoned` is not a lesser post — an argument from having
+     * built the thing is worth reading — but a post that argues from numbers
+     * should say so and then show them.
+     */
+    evidence: z.enum(["measured", "reasoned", "superseded"]).default("reasoned"),
+    /** Slug of the post that replaces this one. Required when superseded. */
+    supersededBy: z.string().optional(),
+  })
+  .refine((post) => post.evidence !== "superseded" || Boolean(post.supersededBy), {
+    message: "a superseded post must name its replacement in `supersededBy`",
+    path: ["supersededBy"],
+  });
 
 export type Metric = z.infer<typeof metricSchema>;
 export type ProjectMeta = z.infer<typeof projectSchema>;

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { MoreInstruments } from "@/components/lab-more";
 import { RrfLab } from "@/components/lab/rrf-lab";
 import { PageHeader, Section } from "@/components/section";
 import { getInstrument } from "@/lib/lab";
@@ -59,7 +60,7 @@ export default function RrfLabPage() {
         <RrfLab />
       </Section>
 
-      <Section className="pt-0 pb-28">
+      <Section className="pt-0 pb-16">
         <div className="prose max-w-2xl">
           <h2>How to read it</h2>
           <p>
@@ -109,6 +110,8 @@ export default function RrfLabPage() {
           </p>
         </div>
       </Section>
+
+      <MoreInstruments current="rrf-k" />
     </>
   );
 }

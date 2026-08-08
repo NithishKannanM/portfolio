@@ -6,6 +6,9 @@ description: >-
   what PSI telemetry gives you instead.
 date: "2026-06-10"
 draft: false
+# Flip to `measured` once the tuned weights, episode count, and PSI ablation
+# are in the post. See BENCHMARKS.md.
+evidence: reasoned
 tags:
   - Systems
   - Reinforcement Learning
@@ -99,6 +102,11 @@ now; the reverse means it's clearing.
 This is a fundamentally better observation because it's **already a measure of
 harm**. Free bytes are a proxy for harm that breaks under exactly the
 conditions you care about. PSI is the harm.
+
+That claim is easier to see than to read — there's
+[an instrument for it in the lab](/lab/psi-vs-free-bytes), where you can drag a
+free-bytes threshold across three workloads and go looking for one value that
+handles all of them.
 
 And critically, cgroup v2 exposes PSI **per cgroup** — `memory.pressure` inside
 each control group — so the policy can see which tier is suffering, not just

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { EvidenceBadge } from "@/components/evidence";
 import type { Post } from "@/lib/content";
 import { formatDate, isoDate } from "@/lib/utils";
 
@@ -20,6 +21,9 @@ export function PostRow({ post }: { post: Post }) {
               Draft
             </span>
           ) : null}
+          {/* No `detail` here — on an index row the qualifying phrase costs
+              more width than it earns, and the post page states it in full. */}
+          <EvidenceBadge evidence={post.evidence} />
         </div>
 
         <h3 className="mt-3 text-xl font-semibold tracking-tight transition-colors group-hover:text-signal">

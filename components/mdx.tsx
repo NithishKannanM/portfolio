@@ -2,6 +2,7 @@ import { MDXRemote } from "next-mdx-remote/rsc";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { PsiLab } from "@/components/lab/psi-lab";
 import { RrfLab } from "@/components/lab/rrf-lab";
 import { mdxOptions } from "@/lib/mdx-options";
 import { cn } from "@/lib/utils";
@@ -62,6 +63,125 @@ function Side({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+/**
+ * A measured results table.
+ *
+ * The reason this exists rather than a markdown table: results are the part of
+ * a post that has to be trustworthy, so the component makes provenance a
+ * required field. `source` should name the script and commit that produced the
+ * numbers, so a reader — or you, in a year — can go and re-run it.
+ *
+ * A post carrying one of these should also flip its frontmatter to
+ * `evidence: measured`.
+ */
+type ResultRow = {
+  label: string;
+  /** One entry per column, in the same order as `columns`. */
+  values: (number | string)[];
+  /** Renders the row as the winner. At most one. */
+  best?: boolean;
+};
+
+function Results({
+  columns,
+  rows,
+  caption,
+  source,
+  better = "higher",
+}: {
+  columns: string[];
+  rows: ResultRow[];
+  caption?: string;
+  /** Script and commit that produced these numbers. */
+  source: string;
+  better?: "higher" | "lower";
+}) {
+  const malformed = rows.find((r) => r.values.length !== columns.length);
+  if (rows.length === 0 || malformed) {
+    // Same discipline as <Todo>: a broken results table must be impossible to
+    // ship silently, because the failure mode is a post that looks measured
+    // and isn't.
+    return (
+      <p className="border border-dashed border-signal-dim bg-panel px-4 py-3 font-mono text-xs text-signal">
+        RESULTS TABLE INCOMPLETE —{" "}
+        {rows.length === 0
+          ? "no rows supplied"
+          : `row “${malformed?.label}” has ${malformed?.values.length} values for ${columns.length} columns`}
+      </p>
+    );
+  }
+
+  return (
+    <div className="not-prose my-8 border border-line corner-ticks">
+      <div className="flex items-baseline justify-between gap-3 border-b border-line px-4 py-2.5">
+        <span className="label text-fg">Measured</span>
+        <span className="label text-[10px] normal-case tracking-normal">
+          {better} is better
+        </span>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr>
+              <th
+                scope="col"
+                className="label border-b border-line-hi px-4 py-2.5 text-left font-normal"
+              >
+                Variant
+              </th>
+              {columns.map((column) => (
+                <th
+                  key={column}
+                  scope="col"
+                  className="label border-b border-line-hi px-4 py-2.5 text-right font-normal whitespace-nowrap"
+                >
+                  {column}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.label} className={cn(row.best && "bg-panel-hi")}>
+                <th
+                  scope="row"
+                  className={cn(
+                    "border-b border-line px-4 py-2.5 text-left font-normal whitespace-nowrap",
+                    row.best ? "text-fg" : "text-dim",
+                  )}
+                >
+                  {row.label}
+                </th>
+                {row.values.map((value, i) => (
+                  <td
+                    key={columns[i]}
+                    className={cn(
+                      "tabular border-b border-line px-4 py-2.5 text-right font-mono",
+                      row.best ? "text-signal" : "text-dim",
+                    )}
+                  >
+                    {value}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="border-t border-line px-4 py-3">
+        {caption ? (
+          <p className="text-[13px] leading-relaxed text-dim">{caption}</p>
+        ) : null}
+        <p className={cn("font-mono text-[10px] text-muted", caption && "mt-2")}>
+          SOURCE <span className="text-dim">{source}</span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
 /** Placeholder for figures Nithish still needs to supply. Renders visibly
  *  so it can't ship unnoticed. */
 function Todo({ children }: { children: ReactNode }) {
@@ -88,7 +208,7 @@ function Anchor({ href = "", children, ...rest }: React.ComponentProps<"a">) {
   );
 }
 
-const components = { Note, Figure, Compare, Side, Todo, RrfLab, a: Anchor };
+const components = { Note, Figure, Compare, Side, Results, Todo, PsiLab, RrfLab, a: Anchor };
 
 export function Mdx({ source }: { source: string }) {
   return (
