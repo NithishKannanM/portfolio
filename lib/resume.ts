@@ -27,9 +27,9 @@ export const experience = [
     org: "Viha Online",
     period: "Jun 2026 — Present",
     points: [
-      "Ran a technical audit of a Shopify store (Liquid theme, GraphQL Admin API, GSC data) that surfaced a 58% checkout abandonment rate and a desktop-vs-mobile organic search gap (position 31.5 vs. 10.8).",
-      "Queried store analytics via ShopifyQL and a Supermetrics GSC connector to trace an AOV drop to a single underperforming SKU with a 7–8× landing-page traffic gap.",
-      "Built and shipped a custom shop-by-purpose.liquid section, wiring it into the homepage through config/settings_data.json.",
+      "Built a diagnostic pipeline against Google Search Console and Merchant Center APIs (via Google Cloud Console) alongside Shopify's Admin GraphQL API to cross-reference checkout, traffic, and search-ranking data, surfacing a 58% checkout abandonment rate and a 31.5-vs-10.8 desktop/mobile search-position gap.",
+      "Traced a store-wide AOV drop to a single underperforming SKU by chaining automated ShopifyQL queries through the same pipeline, isolating a 7–8× landing-page traffic gap the client's team hadn't caught manually.",
+      "Scoped a Carthike-based WhatsApp automation workflow and a proposed voice-AI customer care pipeline (Exotel telephony, Sarvam AI, Claude Haiku, ElevenLabs) for COD confirmation and order-status handling, pending client sign-off.",
     ],
   },
 ] as const;
@@ -44,18 +44,27 @@ export const education = {
 
 export const skillGroups = [
   {
-    label: "Languages & Frameworks",
-    items: ["Python", "C", "C++", "FastAPI", "LangChain (LCEL)", "PyTorch"],
+    label: "Languages",
+    items: ["Python", "C", "C++", "SQL"],
   },
   {
     label: "ML / Retrieval",
-    items: ["FAISS", "BM25", "BGE-M3", "Hybrid Retrieval (RRF Fusion)", "TFLite INT8"],
+    items: [
+      "PyTorch",
+      "LangChain (LCEL)",
+      "BGE-M3",
+      "FAISS",
+      "BM25",
+      "Hybrid Retrieval (RRF Fusion)",
+    ],
   },
   {
     label: "Systems & Infra",
     items: [
       "Linux cgroup v2",
       "PSI telemetry",
+      "Docker",
+      "Kubernetes",
       "OpenTelemetry",
       "MCP (Model Context Protocol)",
       "AWS",
@@ -63,7 +72,7 @@ export const skillGroups = [
   },
   {
     label: "Web & Tools",
-    items: ["React", "HTML", "CSS", "JavaScript", "SQL", "Git/GitHub"],
+    items: ["FastAPI", "React", "HTML", "CSS", "JavaScript", "Git/GitHub"],
   },
 ] as const;
 
@@ -89,9 +98,9 @@ export const achievements = [
       "Empath, an emotion-aware adaptive learning platform (React, FastAPI, HuggingFace, Supabase).",
   },
   {
-    title: "Published adaptive-rag-router on PyPI",
+    title: "GlucoSentry — patent application under review (VIT IPR Cell)",
     detail:
-      "A pip-installable, embedding-similarity routing layer for RAG pipelines with confidence-based refusal and OpenTelemetry tracing.",
+      "An ESP32 wearable design with signal-quality-gated ECG acquisition, CNN+BiLSTM hypoglycemia risk inference, and an adaptive sampling/alert controller.",
   },
 ] as const;
 
