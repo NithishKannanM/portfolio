@@ -50,3 +50,6 @@ next-env.d.ts
 # Agent skills installed via `npx skills add`
 /.agents
 /skills-lock.json
+
+# Per-machine Claude Code permissions
+/.claude/settings.local.json
